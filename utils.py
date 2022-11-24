@@ -1,6 +1,7 @@
 from typing import Tuple, List
 from matplotlib.patches import Rectangle
 
+import numpy as np
 import matplotlib.pyplot as plt
 
 
@@ -38,9 +39,23 @@ class MovingArea:
     obstacles and bordel of the area.
     """
 
-    def __init__(self, width: int, height: int) -> None:
+    def __init__(
+        self,
+        width: int,
+        height: int,
+        moving_speed: float,
+        exit_point: Tuple[int] = None,
+        mesure_unit: float = 1,
+    ) -> None:
         self._width = width
         self._height = height
+        self.moving_speed = moving_speed
+        self._mesure_unit = mesure_unit
+        self._exit = (
+            np.array(exit_point)
+            if exit_point
+            else np.array((self._width // 2, self._height // 2))
+        )
         self.obstacles = []
 
     def initialize_obstacles(self, obstacles: List[RectangleObstacle]):
@@ -53,6 +68,25 @@ class MovingArea:
                 and 0 <= obstacle.y_max <= self._height
             ), f"[!] Your {obstacle} is not well defined !"
             self.obstacles.append(obstacle)
+
+    def _is_in_escape_zone(self, position: Tuple[int]) -> bool:
+        return position[0] < self._exit[0]
+
+    def spontaneous_speeds(self) -> np.ndarray:
+        speeds = np.zeros((self._width, self._height, 2))
+        for x in range(self._width):
+            for y in range(self._height):
+                direction_vector = self._exit - np.array((x, y))
+                speeds[x, y] = (
+                    (
+                        self.moving_speed
+                        * direction_vector
+                        / np.linalg.norm(direction_vector)
+                    )
+                    if self._is_in_escape_zone((x, y))
+                    else np.array((self.moving_speed, 0))
+                )
+        return speeds
 
     def plot(self, fig: plt.figure) -> None:
         """Plot area and obstacles."""
@@ -70,21 +104,30 @@ class MovingArea:
             )
             ax.add_patch(obstacle_rect)
 
+    def plot_speed(self, fig):
+        ax = fig.add_subplot()
+        x, y = np.meshgrid(
+            np.linspace(0, self._width, self._width),
+            np.linspace(0, self._height, self._height),
+        )
+        speeds = self.spontaneous_speeds()
+        ax.quiver(x, y, np.transpose(speeds[:, :, 0]), np.transpose(speeds[:, :, 1]))
+
 
 if __name__ == "__main__":
     """
     TEST DEV ZONE
     """
 
-    WIDTH = 100
-    HEIGHT = 50
-    EXIT_RADIUS = 10
-    WALL_BORDER = 3
+    WIDTH = 20
+    HEIGHT = 12
+    EXIT_RADIUS = 1
+    WALL_BORDER = 1
 
-    my_board = MovingArea(WIDTH, HEIGHT)
+    my_board = MovingArea(WIDTH, HEIGHT, 1)
     obstacles = [
         RectangleObstacle(
-            (WIDTH // 2, 1000),
+            (WIDTH // 2, 0),
             (WIDTH // 2 + WALL_BORDER, HEIGHT // 2 - EXIT_RADIUS),
         ),
         RectangleObstacle(
@@ -93,8 +136,11 @@ if __name__ == "__main__":
         ),
     ]
     my_board.initialize_obstacles(obstacles)
+    speeds = my_board.spontaneous_speeds()
 
     fig = plt.figure()
+
+    my_board.plot_speed(fig)
     my_board.plot(fig)
     plt.axis("equal")
     plt.axis("off")
