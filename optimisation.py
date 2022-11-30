@@ -22,8 +22,7 @@ def distance_walls (positions: np.ndarray, people_radius: int, width: int, heigh
 
 def distance_obstacle (positions: np.ndarray, people_radius: int, obstacle: RectangleObstacle) -> np.ndarray:
     
-        """We have to check in which zone the people are to compute their distance to the obstacle
-
+    """We have to check in which zone the people are to compute their distance to the obstacle
         Zone 2  |       Zone 3          | Zone 4
                 |                       |
         --------+-----------------------|--------
@@ -62,22 +61,22 @@ def distance_obstacle (positions: np.ndarray, people_radius: int, obstacle: Rect
         elif (x < obstacle.x_min) :
             if (y< obstacle.y_min): #Zone 2
                 distances.append(
-                    np.linalg.norm(positions[k] - array([obstacle.x_min, obstacle.y_min])
+                    np.linalg.norm(positions[k] - np.array([obstacle.x_min, obstacle.y_min]))
                     )
             elif (y> obstacle.y_max): #Zone 4
                 distances.append(
-                    np.linalg.norm(positions[k] - array([obstacle.x_max, obstacle.y_min])
+                    np.linalg.norm(positions[k] - np.array([obstacle.x_max, obstacle.y_min]))
                     )
 
         #Check Zone 6 and 8
         elif (x > obstacle.x_max) :
             if (y< obstacle.y_min): #Zone 8
                 distances.append(
-                    np.linalg.norm(positions[k] - array([obstacle.x_max, obstacle.y_min])
+                    np.linalg.norm(positions[k] - np.array([obstacle.x_max, obstacle.y_min]))
                     )
             elif (y> obstacle.y_max): #Zone 6
                 distances.append(
-                    np.linalg.norm(positions[k] - array([obstacle.x_max, obstacle.y_max])
+                    np.linalg.norm(positions[k] - np.array([obstacle.x_max, obstacle.y_max]))
                     )
     
     return distances
