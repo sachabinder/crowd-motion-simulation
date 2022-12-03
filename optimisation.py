@@ -98,3 +98,40 @@ def distances(directions: np.ndarray) -> np.ndarray:
 def gradients_of_distances(directions: np.ndarray) -> np.ndarray:
     my_distances = distances(directions)
     return directions / my_distances[:, np.newaxis]
+
+
+if __name__ == "__main__":
+    """&
+    TEST DEV ZONE
+    """
+    from utils import MovingArea
+
+    WIDTH = 60
+    HEIGHT = 30
+    EXIT_CENTER = np.array([WIDTH // 2, HEIGHT // 2])  # center of the exit
+    EXIT_RADIUS = np.array([3, 2])  # radius of the exit
+
+    my_area = MovingArea(
+        width=WIDTH,
+        height=HEIGHT,
+        moving_speed=1,
+        people_radius=1,
+        exit_center=EXIT_CENTER,
+        exit_radius=EXIT_RADIUS,
+    )
+
+    my_area.initialize_obstacles()
+
+    initial_positions = np.array([[5, 5], [5, 10], [5, 15], [5, 20], [5, 25]])
+    people_directions = directions_between_people(initial_positions)
+    walls_directions = directions_to_walls(
+        initial_positions,
+        moving_zone_width=my_area.width,
+        moving_zone_height=my_area.height,
+    )
+    obstacles_directions = directions_to_obstacles(initial_positions, my_area.obstacles)
+    directions = np.concatenate(
+        [people_directions, walls_directions, obstacles_directions]
+    )
+    my_distances = distances(directions=directions)
+    gradients = gradients_of_distances(directions)
