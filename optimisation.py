@@ -20,12 +20,12 @@ def directions_to_walls(
     """Compute the (not normalized) vector direction to each wall 
     of the moving zone
                     
-             (0,0)       top wall
+             (0,0)      top wall
                 *-----------------------+
       left wall |        Moving         | right wall
                 |         zone          |
                 +-----------------------*
-                        bottomprojection_direction_on_obstacle wall     (widht, height)
+                         bottom      (widht, height)
     """
     directions_to_top_wall = np.zeros_like(positions)
     directions_to_bottom_wall = np.zeros_like(positions)
@@ -85,3 +85,16 @@ def directions_to_obstacles(
         )
         directions.append(obstacle_directions)
     return np.concatenate(directions, axis=0)
+
+
+def distances(directions: np.ndarray) -> np.ndarray:
+    """Distances between two point is the norm of the
+    (not normalized) vector direction between them. By default here,
+    it is the Euclidian norm.
+    """
+    return np.linalg.norm(directions, axis=1)
+
+
+def gradients_of_distances(directions: np.ndarray) -> np.ndarray:
+    my_distances = distances(directions)
+    return directions / my_distances[:, np.newaxis]
