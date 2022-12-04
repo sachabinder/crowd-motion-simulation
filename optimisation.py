@@ -1,16 +1,17 @@
 import numpy as np
+import cvxpy as cp
 
-# import cvxpy as cp
 from typing import List
-from utils import RectangleObstacle
+from utils import RectangleObstacle, MovingArea
 
 
 def directions_between_people(positions: np.ndarray) -> np.ndarray:
-    """Copute the (not normalized) vector direction that separate two distinct people
+    """Copute the (not normalized) vector direction that separate two distinct 
+    people for each people of the problem.
+    Return a square antisymetric matrix that represent for each people (column), the distance to others.
     """
     positions_matrix = np.array([positions] * len(positions))
-    directions_vector_matrix = positions_matrix - positions_matrix.transpose(1, 0, 2)
-    directions = directions_vector_matrix[np.triu_indices(len(positions_matrix), k=1)]
+    directions = positions_matrix - positions_matrix.transpose(1, 0, 2)
     return directions
 
 
@@ -37,15 +38,14 @@ def directions_to_walls(
     directions_to_left_wall[:, 0] = -positions[:, 0]
     directions_to_right_wall[:, 0] = moving_zone_width - positions[:, 0]
 
-    return np.concatenate(
-        (
+    return np.array(
+        [
             directions_to_top_wall,
             directions_to_bottom_wall,
             directions_to_left_wall,
             directions_to_right_wall,
-        ),
-        axis=0,
-    )
+        ]
+    ).transpose(1, 0, 2)
 
 
 def directions_to_obstacles(
@@ -84,7 +84,7 @@ def directions_to_obstacles(
             - positions[:, 1]
         )
         directions.append(obstacle_directions)
-    return np.concatenate(directions, axis=0)
+    return np.array(directions).transpose(1, 0, 2)
 
 
 def distances(directions: np.ndarray) -> np.ndarray:
@@ -92,12 +92,12 @@ def distances(directions: np.ndarray) -> np.ndarray:
     (not normalized) vector direction between them. By default here,
     it is the Euclidian norm.
     """
-    return np.linalg.norm(directions, axis=1)
+    return np.linalg.norm(directions, axis=2)
 
 
 def gradients_of_distances(directions: np.ndarray) -> np.ndarray:
     my_distances = distances(directions)
-    return directions / my_distances[:, np.newaxis]
+    return directions / my_distances[:, :, np.newaxis]
 
 
 if __name__ == "__main__":
@@ -124,14 +124,12 @@ if __name__ == "__main__":
 
     initial_positions = np.array([[5, 5], [5, 10], [5, 15], [5, 20], [5, 25]])
     people_directions = directions_between_people(initial_positions)
+
     walls_directions = directions_to_walls(
         initial_positions,
         moving_zone_width=my_area.width,
         moving_zone_height=my_area.height,
     )
     obstacles_directions = directions_to_obstacles(initial_positions, my_area.obstacles)
-    directions = np.concatenate(
-        [people_directions, walls_directions, obstacles_directions]
-    )
-    my_distances = distances(directions=directions)
-    gradients = gradients_of_distances(directions)
+    my_distances = distances(directions=obstacles_directions)
+    gradients = gradients_of_distances(walls_directions)
