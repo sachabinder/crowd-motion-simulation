@@ -162,7 +162,7 @@ if __name__ == "__main__":
     WIDTH = 60
     HEIGHT = 30
     EXIT_CENTER = np.array([WIDTH // 2, HEIGHT // 2])  # center of the exit
-    EXIT_RADIUS = np.array([3, 1])  # radius of the exit
+    EXIT_RADIUS = np.array([3, 2])  # radius of the exit
     my_area = MovingArea(
         width=WIDTH,
         height=HEIGHT,
