@@ -143,35 +143,3 @@ def get_admissible_speed(
     prob = cp.Problem(objective, constraints)
     prob.solve()
     return v.value
-
-
-if __name__ == "__main__":
-    """&
-    TEST DEV ZONE
-    """
-    from utils import MovingArea
-
-    WIDTH = 60
-    HEIGHT = 30
-    EXIT_CENTER = np.array([WIDTH // 2, HEIGHT // 2])  # center of the exit
-    EXIT_RADIUS = np.array([3, 2])  # radius of the exit
-
-    my_area = MovingArea(
-        width=WIDTH,
-        height=HEIGHT,
-        moving_speed=1,
-        people_radius=1,
-        exit_center=EXIT_CENTER,
-        exit_radius=EXIT_RADIUS,
-    )
-    my_area.initialize_obstacles()
-    spont_speed = my_area.spontaneous_speeds()
-    initial_positions = np.array([[5, 5], [5, 10], [5, 15], [5, 20], [5, 25]])
-    specific_spont_speed = spont_speed[initial_positions[:, 0], initial_positions[:, 1]]
-    speed = get_admissible_speed(
-        natural_speed=specific_spont_speed,
-        positions=initial_positions,
-        moving_zone=my_area,
-        time_step=0.2,
-    )
-    print(speed)
