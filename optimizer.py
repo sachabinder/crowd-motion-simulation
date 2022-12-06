@@ -45,7 +45,7 @@ def directions_to_walls(
             directions_to_left_wall,
             directions_to_right_wall,
         ]
-    ).transpose(1, 0, 2)
+    )
 
 
 def directions_to_obstacles(
@@ -84,7 +84,7 @@ def directions_to_obstacles(
             - positions[:, 1]
         )
         directions.append(obstacle_directions)
-    return np.array(directions).transpose(1, 0, 2)
+    return np.array(directions)
 
 
 def distances(directions: np.ndarray) -> np.ndarray:
@@ -97,39 +97,49 @@ def distances(directions: np.ndarray) -> np.ndarray:
 
 def gradients_of_distances(directions: np.ndarray) -> np.ndarray:
     my_distances = distances(directions)
-    return directions / my_distances[:, :, np.newaxis]
+    gradients = directions / my_distances[:, :, np.newaxis]
+    return np.nan_to_num(gradients, nan=0)
 
 
-if __name__ == "__main__":
-    """&
-    TEST DEV ZONE
-    """
-    from utils import MovingArea
-
-    WIDTH = 60
-    HEIGHT = 30
-    EXIT_CENTER = np.array([WIDTH // 2, HEIGHT // 2])  # center of the exit
-    EXIT_RADIUS = np.array([3, 2])  # radius of the exit
-
-    my_area = MovingArea(
-        width=WIDTH,
-        height=HEIGHT,
-        moving_speed=1,
-        people_radius=1,
-        exit_center=EXIT_CENTER,
-        exit_radius=EXIT_RADIUS,
-    )
-
-    my_area.initialize_obstacles()
-
-    initial_positions = np.array([[5, 5], [5, 10], [5, 15], [5, 20], [5, 25]])
-    people_directions = directions_between_people(initial_positions)
+def get_admissible_speed(
+    natural_speed: np.ndarray,
+    positions: np.ndarray,
+    moving_zone: MovingArea,
+    time_step: float,
+) -> np.ndarray:
+    people_directions = directions_between_people(positions)
+    people_gradients = gradients_of_distances(people_directions)
+    people_distances = distances(people_directions)
 
     walls_directions = directions_to_walls(
-        initial_positions,
-        moving_zone_width=my_area.width,
-        moving_zone_height=my_area.height,
+        positions=positions,
+        moving_zone_width=moving_zone.width,
+        moving_zone_height=moving_zone.height,
     )
-    obstacles_directions = directions_to_obstacles(initial_positions, my_area.obstacles)
-    my_distances = distances(directions=obstacles_directions)
-    gradients = gradients_of_distances(walls_directions)
+    walls_gradients = gradients_of_distances(walls_directions)
+    walls_distances = distances(walls_directions)
+
+    obstacles_directions = directions_to_obstacles(positions, moving_zone.obstacles)
+    obstacles_gradients = gradients_of_distances(obstacles_directions)
+    obstacles_distances = distances(obstacles_directions)
+
+    # Optimization problem formulation
+    v = cp.Variable(natural_speed.shape)
+    objective = cp.Minimize(cp.sum_squares(natural_speed - v))
+    constraints = (
+        [
+            (people_distances[i] + time_step * people_gradients[i] @ v[i] >= 0)
+            for i in range(people_directions.shape[0])
+        ]
+        + [
+            (walls_distances[i] + time_step * walls_gradients[i] @ v[i] >= 0)
+            for i in range(walls_directions.shape[0])
+        ]
+        + [
+            (obstacles_distances[i] + time_step * obstacles_gradients[i] @ v[i] >= 0)
+            for i in range(obstacles_directions.shape[0])
+        ]
+    )
+    prob = cp.Problem(objective, constraints)
+    prob.solve()
+    return v.value
