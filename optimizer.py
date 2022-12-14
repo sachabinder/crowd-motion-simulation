@@ -9,10 +9,26 @@ class speedProjection:
     on admissible speed set
     """
 
-    def __init__(self, instant_positions: np.ndarray, moving_zone: MovingArea) -> None:
-        self._positions = instant_positions
-        self._people_number = len(instant_positions)
+    def __init__(self, moving_zone: MovingArea) -> None:
+        self._positions = None
         self._moving_zone = moving_zone
+        self._people_gradient_transition_matrix = np.zeros(
+            (
+                self._moving_zone.people_number
+                * (self._moving_zone.people_number - 1)
+                // 2,
+                self._moving_zone.people_number,
+            )
+        )
+        k = 0
+        for i in range(self._moving_zone.people_number):
+            for j in range(i + 1, self._moving_zone.people_number):
+                self._people_gradient_transition_matrix[k, i] = -1
+                self._people_gradient_transition_matrix[k, j] = +1
+                k += 1
+
+    def update_position(self, new_positions: np.ndarray):
+        self._positions = new_positions
 
     def directions_between_people(self) -> np.ndarray:
         """Copute the (not normalized) vector direction that 
@@ -20,7 +36,7 @@ class speedProjection:
         Return a square antisymetric matrix that represent for 
         each people (column), the distance to others.
         """
-        positions_matrix = np.array([self._positions] * len(self._people_number))
+        positions_matrix = np.array([self._positions] * len(self._positions))
         directions = positions_matrix - positions_matrix.transpose(1, 0, 2)
         return directions[np.triu_indices(len(positions_matrix), k=1)]
 
@@ -92,13 +108,6 @@ class speedProjection:
             directions.append(obstacle_directions)
         return np.array(directions)
 
-    def distances(self, directions: np.ndarray) -> np.ndarray:
-        """Distances between two point is the norm of the
-        (not normalized) vector direction between them. By default here,
-        it is the Euclidian norm.
-        """
-        return np.linalg.norm(directions, axis=2)
-
     def gradients_of_distances(self, directions: np.ndarray) -> np.ndarray:
         my_distances = self.distances(directions)
         gradients = directions / my_distances[:, :, np.newaxis]
@@ -108,37 +117,26 @@ class speedProjection:
         self, natural_speed: np.ndarray, time_step: float,
     ) -> np.ndarray:
         people_directions = self.directions_between_people()
-        people_gradients = self.gradients_of_distances(people_directions)
-        people_distances = np.linalg.norm(people_directions, axis=2)
-
-        walls_directions = self.directions_to_walls()
-        walls_gradients = self.gradients_of_distances(walls_directions)
-        walls_distances = self.distances(walls_directions)
-
-        obstacles_directions = self.directions_to_obstacles()
-        obstacles_gradients = self.gradients_of_distances(obstacles_directions)
-        obstacles_distances = self.distances(obstacles_directions)
-
+        people_distances = (
+            np.linalg.norm(people_directions, axis=1)
+            - 2 * self._moving_zone.people_radius
+        )
+        people_gradient = (
+            self._people_gradient_transition_matrix[:, :, np.newaxis]
+            * (people_directions / people_distances[:, np.newaxis])[:, np.newaxis]
+        )
+        assert (
+            people_distances.shape[0] == people_gradient.shape[0]
+        ), "Missmatch of dims between people gradient and people distances !"
         # Optimization problem formulation
         v = cp.Variable(natural_speed.shape)
         objective = cp.Minimize(cp.sum_squares(natural_speed - v))
-        constraints = (
-            [
-                (people_distances[i] + time_step * people_gradients[i] @ v[i] >= 0)
-                for i in range(people_directions.shape[0])
-            ]
-            + [
-                (walls_distances[i] + time_step * walls_gradients[i] @ v[j] >= 0)
-                for i in range(walls_directions.shape[0])
-            ]
-            + [
-                (
-                    obstacles_distances[i] + time_step * obstacles_gradients[i] @ v[i]
-                    >= 0
-                )
-                for i in range(obstacles_directions.shape[0])
-            ]
-        )
+        constraints = [
+            people_distances[k]
+            + time_step * (cp.sum(cp.multiply(people_gradient[k], v)))
+            >= 0
+            for k in range(len(people_distances))
+        ]
         prob = cp.Problem(objective, constraints)
         prob.solve()
         return v.value
