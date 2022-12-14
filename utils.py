@@ -1,8 +1,10 @@
-from typing import Tuple
-from matplotlib.patches import Rectangle
-
 import numpy as np
 import matplotlib.pyplot as plt
+
+from matplotlib import axes
+from typing import Tuple
+from matplotlib.patches import Rectangle, Circle
+from random import randint
 
 SAFETY_RADIUS = 3  # should implement adaptative raduis
 
@@ -47,6 +49,7 @@ class MovingArea:
         height: int,
         moving_speed: float,
         people_radius: int,
+        people_number: int,
         exit_center: np.ndarray,
         exit_radius: np.ndarray,
     ) -> None:
@@ -72,13 +75,15 @@ class MovingArea:
         self.height = height
         self.moving_speed = moving_speed
         self.people_radius = people_radius
+        self.people_number = people_number
         self.exit_area = RectangleObstacle(
             exit_center - exit_radius, exit_center + exit_radius
         )
         self.moving_zone = np.ones((self.width, self.height))
         self.obstacles = []
+        self.initial_positions = []
 
-    def initialize_obstacles(self):
+    def initialize_obstacles(self) -> None:
         """Add good obstacles according to the exit area defined by the user."""
         up_wall = RectangleObstacle(
             (self.exit_area.x_min, 0),
@@ -90,6 +95,44 @@ class MovingArea:
         )
         self.obstacles.append(up_wall)
         self.obstacles.append(down_wall)
+
+    def initialize_positions(self, marge_safety: int, random: bool) -> np.ndarray:
+        """Generate initial postion (randomly) with the constraints to respect
+        """
+        positions = []
+        x = randint(
+            self.people_radius + marge_safety,
+            self.exit_area.x_min - self.people_radius - marge_safety,
+        )
+        y = randint(
+            self.people_radius + marge_safety,
+            self.height - self.people_radius - marge_safety,
+        )
+        candidate_position = np.array([x, y])
+        positions.append(candidate_position)
+        for _ in range(self.people_number - 1):
+            while True:
+                flag = True
+                x = randint(
+                    self.people_radius + marge_safety,
+                    self.exit_area.x_min - self.people_radius - marge_safety,
+                )
+                y = randint(
+                    self.people_radius + marge_safety,
+                    self.height - self.people_radius - marge_safety,
+                )
+                candidate_position = np.array([x, y])
+                for position in positions:
+                    if (
+                        np.linalg.norm(position - candidate_position)
+                        < 2 * self.people_radius + marge_safety
+                    ):
+                        flag = False
+                if flag:
+                    break
+            positions.append(candidate_position)
+        self.initial_positions = positions
+        return np.array(positions)
 
     def spontaneous_speeds(self) -> np.ndarray:
         """Computation of the spontaneous speed of individuals taking into account
@@ -109,7 +152,7 @@ class MovingArea:
                 )
             for k in range(self.exit_area.y_max, self.height - self.people_radius):
                 direction_vector = np.array(
-                    [self.exit_area.x_min - i, self.exit_area.y_min - k]
+                    [self.exit_area.x_min - i, self.exit_area.y_max - 1 - k]
                 )
                 speeds[i, k] = (
                     self.moving_speed
@@ -127,9 +170,8 @@ class MovingArea:
         ] = np.array([self.moving_speed, 0])
         return speeds
 
-    def plot(self, fig: plt.figure) -> None:
+    def plot(self, ax: axes) -> None:
         """Plot area and obstacles."""
-        ax = fig.add_subplot()
         base_rect = Rectangle(
             xy=(0, 0), width=self.width, height=self.height, color="black", fill=False
         )
@@ -143,9 +185,8 @@ class MovingArea:
             )
             ax.add_patch(obstacle_rect)
 
-    def plot_speed(self, fig):
-        """Plote the speed vector field."""
-        ax = fig.add_subplot()
+    def plot_speed(self, ax: axes) -> None:
+        """Plot the speed vector field."""
         x, y = np.meshgrid(
             np.linspace(0, self.width, self.width),
             np.linspace(0, self.height, self.height),
@@ -153,28 +194,40 @@ class MovingArea:
         speeds = self.spontaneous_speeds()
         ax.quiver(x, y, np.transpose(speeds[:, :, 0]), np.transpose(speeds[:, :, 1]))
 
+    def plot_initial_positions(self, ax: axes) -> None:
+        """Plot people disposed initially"""
+        for position in self.initial_positions:
+            circle = Circle(position, self.people_radius, color="r")
+            ax.add_patch(circle)
+
 
 if __name__ == "__main__":
     """&
     TEST DEV ZONE
     """
 
-    WIDTH = 60
-    HEIGHT = 30
-    EXIT_CENTER = np.array([WIDTH // 2, HEIGHT // 2])  # center of the exit
-    EXIT_RADIUS = np.array([3, 2])  # radius of the exit
+    WIDTH = 40
+    HEIGHT = 20
+    EXIT_CENTER = np.array([2 * WIDTH // 3, HEIGHT // 2])  # center of the exit
+    EXIT_RADIUS = np.array([1, 2])  # radius of the exit
     my_area = MovingArea(
         width=WIDTH,
         height=HEIGHT,
         moving_speed=1,
         people_radius=1,
+        people_number=15,
         exit_center=EXIT_CENTER,
         exit_radius=EXIT_RADIUS,
     )
     my_area.initialize_obstacles()
+    my_area.initialize_positions(marge_safety=0, random=True)
+
     fig = plt.figure(figsize=(10, 5))
-    my_area.plot_speed(fig)
-    my_area.plot(fig)
+    ax = fig.add_subplot()
+
+    my_area.plot_speed(ax)
+    my_area.plot(ax)
+    my_area.plot_initial_positions(ax)
     plt.axis("equal")
     plt.axis("off")
 
