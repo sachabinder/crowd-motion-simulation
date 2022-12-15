@@ -129,8 +129,7 @@ class speedProjection:
         walls_directions = self.directions_to_walls()
         walls_gradients = -self.gradients_of_distances(walls_directions)
         walls_distances = (
-            np.linalg.norm(walls_directions, axis=2)
-            - 2 * self._moving_zone.people_radius
+            np.linalg.norm(walls_directions, axis=2) - self._moving_zone.people_radius
         )
 
         obstacles_directions = self.directions_to_obstacles()
@@ -138,7 +137,6 @@ class speedProjection:
         obstacles_distances = (
             np.linalg.norm(obstacles_directions, axis=2)
             - self._moving_zone.people_radius
-            - 5
         )
 
         assert (
