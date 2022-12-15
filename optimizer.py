@@ -109,7 +109,7 @@ class speedProjection:
         return np.array(directions)
 
     def gradients_of_distances(self, directions: np.ndarray) -> np.ndarray:
-        my_distances = self.distances(directions)
+        my_distances = np.linalg.norm(directions, axis=2)
         gradients = directions / my_distances[:, :, np.newaxis]
         return np.nan_to_num(gradients, nan=0)
 
@@ -125,18 +125,49 @@ class speedProjection:
             self._people_gradient_transition_matrix[:, :, np.newaxis]
             * (people_directions / people_distances[:, np.newaxis])[:, np.newaxis]
         )
+
+        walls_directions = self.directions_to_walls()
+        walls_gradients = -self.gradients_of_distances(walls_directions)
+        walls_distances = (
+            np.linalg.norm(walls_directions, axis=2)
+            - 2 * self._moving_zone.people_radius
+        )
+
+        obstacles_directions = self.directions_to_obstacles()
+        obstacles_gradients = -self.gradients_of_distances(obstacles_directions)
+        obstacles_distances = (
+            np.linalg.norm(obstacles_directions, axis=2)
+            - self._moving_zone.people_radius
+            - 5
+        )
+
         assert (
             people_distances.shape[0] == people_gradient.shape[0]
         ), "Missmatch of dims between people gradient and people distances !"
+
         # Optimization problem formulation
         v = cp.Variable(natural_speed.shape)
         objective = cp.Minimize(cp.sum_squares(natural_speed - v))
-        constraints = [
-            people_distances[k]
-            + time_step * (cp.sum(cp.multiply(people_gradient[k], v)))
-            >= 0
-            for k in range(len(people_distances))
-        ]
+        constraints = (
+            [
+                people_distances[k]
+                + time_step * cp.sum(cp.multiply(people_gradient[k], v))
+                >= 0
+                for k in range(len(people_distances))
+            ]
+            + [
+                walls_distances[k]
+                + time_step * cp.sum(cp.multiply(walls_gradients[k], v), axis=1)
+                >= 0
+                for k in range(len(walls_distances))
+            ]
+            + [
+                obstacles_distances[k]
+                + time_step * cp.sum(cp.multiply(obstacles_gradients[k], v), axis=1)
+                >= 0
+                for k in range(len(obstacles_distances))
+            ]
+        )
         prob = cp.Problem(objective, constraints)
         prob.solve()
         return v.value
