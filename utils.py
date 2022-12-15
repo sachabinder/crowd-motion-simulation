@@ -5,6 +5,7 @@ from matplotlib import axes
 from typing import Tuple
 from matplotlib.patches import Rectangle, Circle
 from random import randint
+from sklearn.preprocessing import normalize
 
 SAFETY_RADIUS = 3  # should implement adaptative raduis
 
@@ -130,42 +131,34 @@ class MovingArea:
                 if flag:
                     break
             positions.append(candidate_position)
-        self.initial_positions = positions
-        return np.array(positions)
+        self.initial_positions = np.array(positions)
+        return positions
 
-    def spontaneous_speeds(self) -> np.ndarray:
+    def spontaneous_speeds(self, positions: np.ndarray) -> np.ndarray:
         """Computation of the spontaneous speed of individuals taking into account
         walls, the exit zone and the radius of individuals.
         """
-        speeds = np.zeros((self.width, self.height, 2))
-        # zone where speed is computed
-        for i in range(0, self.exit_area.x_min):
-            for j in range(0, self.exit_area.y_min):
-                direction_vector = np.array(
-                    [self.exit_area.x_min - i - 1, self.exit_area.y_min - j]
-                )
-                speeds[i, j] = (
-                    self.moving_speed
-                    * direction_vector
-                    / np.linalg.norm(direction_vector)
-                )
-            for k in range(self.exit_area.y_max, self.height):
-                direction_vector = np.array(
-                    [self.exit_area.x_min - i - 1, self.exit_area.y_max - 1 - k]
-                )
-                speeds[i, k] = (
-                    self.moving_speed
-                    * direction_vector
-                    / np.linalg.norm(direction_vector)
-                )
-
-        speeds[self.exit_area.x_max : self.width, 0 : self.height,] = np.array(
-            [self.moving_speed, 0]
+        speeds = np.zeros_like(positions)
+        speeds[:, 0] = (positions[:, 0] <= self.exit_area.x_min - 1) * (
+            (
+                (positions[:, 1] <= self.exit_area.y_min - 1)
+                + (positions[:, 1] >= self.exit_area.y_max)
+            )
+            * (self.exit_area.x_min - 1 - positions[:, 0])
+            + (positions[:, 1] > self.exit_area.y_min - 1)
+            * (positions[:, 1] < self.exit_area.y_max)
+        ) + (positions[:, 0] > self.exit_area.x_min - 1) * (
+            self.width - positions[:, 0]
         )
-        speeds[
-            0 : self.exit_area.x_max, self.exit_area.y_min : self.exit_area.y_max,
-        ] = np.array([self.moving_speed, 0])
-        return speeds
+
+        speeds[:, 1] = (positions[:, 0] <= self.exit_area.x_min - 1) * (
+            (
+                (positions[:, 1] <= self.exit_area.y_min - 1)
+                + (positions[:, 1] >= self.exit_area.y_max)
+            )
+            * (self.exit_area.y_min + 1 - positions[:, 1])
+        )
+        return normalize(speeds, axis=1) * self.moving_speed
 
     def plot(self, ax: axes) -> None:
         """Plot area and obstacles."""
@@ -188,7 +181,10 @@ class MovingArea:
             np.linspace(0, self.width, self.width),
             np.linspace(0, self.height, self.height),
         )
-        speeds = self.spontaneous_speeds()
+        speeds = np.zeros((self.width, self.height, 2))
+        for i in range(self.width):
+            for j in range(self.height):
+                speeds[i, j] = self.spontaneous_speeds(np.array([[i, j]]))[0]
         ax.quiver(x, y, np.transpose(speeds[:, :, 0]), np.transpose(speeds[:, :, 1]))
 
     def plot_initial_positions(self, ax: axes) -> None:
