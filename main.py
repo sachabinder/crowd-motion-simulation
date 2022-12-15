@@ -25,20 +25,16 @@ class CrowdSolver:
 
     def solve(self) -> None:
         """Main solver function which compute trajectories"""
-        spont_speed = self._area_config.spontaneous_speeds()
         optimizer = speedProjection(moving_zone=self._area_config)
         for _ in tqdm(range(self._time_step_number)):
-            positions = self._positions[-1]
+            positions = np.array(self._positions[-1])
             optimizer.update_position(positions)
-            natural_speed = spont_speed[positions[:, 0], positions[:, 1]]
+            natural_speed = my_area.spontaneous_speeds(positions)
             admissible_speed = optimizer.get_admissible_speed(
                 natural_speed=natural_speed, time_step=self._time_step
             )
             self._positions.append(
-                np.ndarray.astype(
-                    np.round(self._positions[-1] + admissible_speed * self._time_step),
-                    np.int64,
-                )
+                self._positions[-1] + admissible_speed * self._time_step
             )
 
     @property
@@ -48,12 +44,12 @@ class CrowdSolver:
 
 
 if __name__ == "__main__":
-    ZONE_WIDTH = 1000
+    ZONE_WIDTH = 800
     ZONE_HEIGHT = 400
     EXIT_CENTER = np.array([300, ZONE_HEIGHT // 2])  # center of the exit
-    EXIT_RADIUS = np.array([10, 40])  # radius of the exit
-    PEOPLE_RADIUS = 8
-    PEOPLE_NUMBER = 30
+    EXIT_RADIUS = np.array([10, 20])  # radius of the exit
+    PEOPLE_RADIUS = 4
+    PEOPLE_NUMBER = 150
     PEOPLE_SPEED = 6
 
     my_area = MovingArea(
@@ -73,9 +69,6 @@ if __name__ == "__main__":
         time_step_number=40,
         initial_positions=initial_positions,
     )
-    try:
-        crowd.solve()
-    except Exception as e:
-        print(e)
+    crowd.solve()
     trajectories = crowd.result
     plot_animation(trajectories, my_area)
