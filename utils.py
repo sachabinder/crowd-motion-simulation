@@ -86,11 +86,10 @@ class MovingArea:
     def initialize_obstacles(self) -> None:
         """Add good obstacles according to the exit area defined by the user."""
         up_wall = RectangleObstacle(
-            (self.exit_area.x_min, 0),
-            (self.exit_area.x_max, self.exit_area.y_min - self.people_radius),
+            (self.exit_area.x_min, 0), (self.exit_area.x_max, self.exit_area.y_min),
         )
         down_wall = RectangleObstacle(
-            (self.exit_area.x_min, self.exit_area.y_max + self.people_radius),
+            (self.exit_area.x_min, self.exit_area.y_max),
             (self.exit_area.x_max, self.height),
         )
         self.obstacles.append(up_wall)
@@ -140,19 +139,19 @@ class MovingArea:
         """
         speeds = np.zeros((self.width, self.height, 2))
         # zone where speed is computed
-        for i in range(self.people_radius, self.exit_area.x_min - self.people_radius):
-            for j in range(self.people_radius, self.exit_area.y_min):
+        for i in range(0, self.exit_area.x_min):
+            for j in range(0, self.exit_area.y_min):
                 direction_vector = np.array(
-                    [self.exit_area.x_min - i, self.exit_area.y_min - j]
+                    [self.exit_area.x_min - i - 1, self.exit_area.y_min - j]
                 )
                 speeds[i, j] = (
                     self.moving_speed
                     * direction_vector
                     / np.linalg.norm(direction_vector)
                 )
-            for k in range(self.exit_area.y_max, self.height - self.people_radius):
+            for k in range(self.exit_area.y_max, self.height):
                 direction_vector = np.array(
-                    [self.exit_area.x_min - i, self.exit_area.y_max - 1 - k]
+                    [self.exit_area.x_min - i - 1, self.exit_area.y_max - 1 - k]
                 )
                 speeds[i, k] = (
                     self.moving_speed
@@ -160,13 +159,11 @@ class MovingArea:
                     / np.linalg.norm(direction_vector)
                 )
 
+        speeds[self.exit_area.x_max : self.width, 0 : self.height,] = np.array(
+            [self.moving_speed, 0]
+        )
         speeds[
-            self.people_radius + self.exit_area.x_max : self.width - self.people_radius,
-            self.people_radius : self.height - self.people_radius,
-        ] = np.array([self.moving_speed, 0])
-        speeds[
-            self.people_radius : self.exit_area.x_max + self.people_radius,
-            self.exit_area.y_min : self.exit_area.y_max,
+            0 : self.exit_area.x_max, self.exit_area.y_min : self.exit_area.y_max,
         ] = np.array([self.moving_speed, 0])
         return speeds
 
@@ -227,7 +224,7 @@ if __name__ == "__main__":
 
     my_area.plot_speed(ax)
     my_area.plot(ax)
-    my_area.plot_initial_positions(ax)
+    # my_area.plot_initial_positions(ax)
     plt.axis("equal")
     plt.axis("off")
 
