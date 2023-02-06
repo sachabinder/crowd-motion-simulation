@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle as pkl
 
 from matplotlib import axes
 from typing import Tuple
@@ -7,7 +8,8 @@ from matplotlib.patches import Rectangle, Circle
 from random import randint
 from sklearn.preprocessing import normalize
 
-SAFETY_RADIUS = 3  # should implement adaptative raduis
+FIXED_INITIAL_POSITION_FILE_PATH = "./initial_position.pkl"
+SAFETY_RADIUS = 3  # TODO implement adaptative raduis
 
 
 class RectangleObstacle:
@@ -87,7 +89,8 @@ class MovingArea:
     def initialize_obstacles(self) -> None:
         """Add good obstacles according to the exit area defined by the user."""
         up_wall = RectangleObstacle(
-            (self.exit_area.x_min, 0), (self.exit_area.x_max, self.exit_area.y_min),
+            (self.exit_area.x_min, 0),
+            (self.exit_area.x_max, self.exit_area.y_min),
         )
         down_wall = RectangleObstacle(
             (self.exit_area.x_min, self.exit_area.y_max),
@@ -95,42 +98,47 @@ class MovingArea:
         )
         self.obstacles.append(up_wall)
         self.obstacles.append(down_wall)
+        return self.obstacles
 
     def initialize_positions(self, marge_safety: int, random: bool) -> np.ndarray:
-        """Generate initial postion (randomly) with the constraints to respect
-        """
-        positions = []
-        x = randint(
-            self.people_radius + marge_safety,
-            self.exit_area.x_min - self.people_radius - marge_safety,
-        )
-        y = randint(
-            self.people_radius + marge_safety,
-            self.height - self.people_radius - marge_safety,
-        )
-        candidate_position = np.array([x, y])
-        positions.append(candidate_position)
-        for _ in range(self.people_number - 1):
-            while True:
-                flag = True
-                x = randint(
-                    self.people_radius + marge_safety,
-                    self.exit_area.x_min - self.people_radius - marge_safety,
-                )
-                y = randint(
-                    self.people_radius + marge_safety,
-                    self.height - self.people_radius - marge_safety,
-                )
-                candidate_position = np.array([x, y])
-                for position in positions:
-                    if (
-                        np.linalg.norm(position - candidate_position)
-                        < 2 * self.people_radius + marge_safety
-                    ):
-                        flag = False
-                if flag:
-                    break
+        """Generate initial postion (randomly) with the constraints to respect"""
+        if random:
+            positions = []
+            x = randint(
+                self.people_radius + marge_safety,
+                self.exit_area.x_min - self.people_radius - marge_safety,
+            )
+            y = randint(
+                self.people_radius + marge_safety,
+                self.height - self.people_radius - marge_safety,
+            )
+            candidate_position = np.array([x, y])
             positions.append(candidate_position)
+            for _ in range(self.people_number - 1):
+                while True:
+                    flag = True
+                    x = randint(
+                        self.people_radius + marge_safety,
+                        self.exit_area.x_min - self.people_radius - marge_safety,
+                    )
+                    y = randint(
+                        self.people_radius + marge_safety,
+                        self.height - self.people_radius - marge_safety,
+                    )
+                    candidate_position = np.array([x, y])
+                    for position in positions:
+                        if (
+                            np.linalg.norm(position - candidate_position)
+                            < 2 * self.people_radius + marge_safety
+                        ):
+                            flag = False
+                    if flag:
+                        break
+                positions.append(candidate_position)
+            self.initial_positions = np.array(positions)
+            return positions
+        with open(FIXED_INITIAL_POSITION_FILE_PATH, "rb") as f:
+            positions = pkl.load(f)
         self.initial_positions = np.array(positions)
         return positions
 
@@ -220,7 +228,7 @@ if __name__ == "__main__":
 
     my_area.plot_speed(ax)
     my_area.plot(ax)
-    # my_area.plot_initial_positions(ax)
+    my_area.plot_initial_positions(ax)
     plt.axis("equal")
     plt.axis("off")
 

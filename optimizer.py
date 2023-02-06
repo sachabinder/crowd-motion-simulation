@@ -171,18 +171,3 @@ class speedProjection:
         prob = cp.Problem(objective, constraints)
         prob.solve(solver=cp.ECOS)
         return v.value
-
-
-if __name__ == "__main__":
-    initial_positions = np.array([[5, 5], [5, 10], [5, 15], [5, 20], [5, 25]])
-    eij = directions_between_people(initial_positions)
-    N = len(initial_positions)
-    M = np.zeros((N * (N - 1) // 2, N))
-    k = 0
-    for i in range(N):
-        for j in range(i + 1, N):
-            M[k, i] = -1
-            M[k, j] = +1
-            k += 1
-    grads = M[:, :, np.newaxis] * eij[:, np.newaxis]
-    print(grads)
