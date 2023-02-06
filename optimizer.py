@@ -31,9 +31,9 @@ class speedProjection:
         self._positions = new_positions
 
     def directions_between_people(self) -> np.ndarray:
-        """Copute the (not normalized) vector direction that 
+        """Copute the (not normalized) vector direction that
         separate two distinct people for each people of the problem.
-        Return a square antisymetric matrix that represent for 
+        Return a square antisymetric matrix that represent for
         each people (column), the distance to others.
         """
         positions_matrix = np.array([self._positions] * len(self._positions))
@@ -41,12 +41,12 @@ class speedProjection:
         return directions[np.triu_indices(len(positions_matrix), k=1)]
 
     def directions_to_walls(self) -> np.ndarray:
-        """Compute the (not normalized) vector direction to each wall 
+        """Compute the (not normalized) vector direction to each wall
         of the moving zone
-                        
+
                 (0,0)      top wall
                     *-----------------------+
-        left wall |        Moving         | right wall
+          left wall |        Moving         | right wall
                     |         zone          |
                     +-----------------------*
                             bottom      (widht, height)
@@ -73,7 +73,7 @@ class speedProjection:
         )
 
     def directions_to_obstacles(self) -> np.ndarray:
-        """Compute the (not normalized) vector direction to each obstacles 
+        """Compute the (not normalized) vector direction to each obstacles
         of the moving zone. This direction is computing according to the orthogonal projection
         of the position on the obstacle. To do that, we separate an obstacle in 8 zones.
 
@@ -114,7 +114,9 @@ class speedProjection:
         return np.nan_to_num(gradients, nan=0)
 
     def get_admissible_speed(
-        self, natural_speed: np.ndarray, time_step: float,
+        self,
+        natural_speed: np.ndarray,
+        time_step: float,
     ) -> np.ndarray:
         people_directions = self.directions_between_people()
         people_distances = (
@@ -167,21 +169,5 @@ class speedProjection:
             ]
         )
         prob = cp.Problem(objective, constraints)
-        prob.solve()
+        prob.solve(solver=cp.ECOS)
         return v.value
-
-
-if __name__ == "__main__":
-    initial_positions = np.array([[5, 5], [5, 10], [5, 15], [5, 20], [5, 25]])
-    eij = directions_between_people(initial_positions)
-    N = len(initial_positions)
-    M = np.zeros((N * (N - 1) // 2, N))
-    k = 0
-    for i in range(N):
-        for j in range(i + 1, N):
-            M[k, i] = -1
-            M[k, j] = +1
-            k += 1
-    grads = M[:, :, np.newaxis] * eij[:, np.newaxis]
-    print(grads)
-
