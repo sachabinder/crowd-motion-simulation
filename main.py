@@ -169,4 +169,4 @@ def read_amd_plot_solution(file_path: str):
 
 
 if __name__ == "__main__":
-    read_amd_plot_solution(file_path="./dataset/dataset_solution_0-22.pkl")
+    dataset_generator(save_path="./dataset/")
