@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle as pkl
+import concurrent.futures
 
 from tqdm import tqdm
 from utils import MovingArea
@@ -94,58 +95,63 @@ def dataset_generator(save_path: str = "./") -> None:
     exit_width = zone_width // 2
     time_step_number = 40
     max_time_step = 120
-    exit_radiuses = [
-        np.array([exit_radius_width, height])
-        for height in np.linspace(people_radius, zone_height // 2, 100)
+
+    def process(data):
+        i, exit = data
+        exit_radius, exit_center = exit
+        print(i)
+        result = {
+            "zone_width": zone_width,
+            "zone_height": zone_height,
+            "people_radius": people_radius,
+            "people_speed": people_speed,
+            "people_number": people_number,
+            "time_step_number": time_step_number,
+            "max_time_step": max_time_step,
+            "exit_radius_width": exit[0],
+            "exit_radius_height": exit_radius[1],
+            "exit_position_width": exit_center[0],
+            "exit_position_height": exit_center[1],
+        }
+        my_area = MovingArea(
+            width=zone_width,
+            height=zone_height,
+            moving_speed=people_speed,
+            people_number=people_number,
+            people_radius=people_radius,
+            exit_center=exit_center,
+            exit_radius=exit_radius,
+        )
+        result["obstacles"] = my_area.initialize_obstacles()
+        result["initial_position"] = my_area.initialize_positions(5, False)
+        crowd = CrowdSolver(
+            area_config=my_area,
+            max_time=max_time_step,
+            time_step_number=time_step_number,
+            initial_positions=result["initial_position"],
+        )
+        crowd.solve()
+        result["trajectories"] = crowd.result
+
+        file_name = save_path + f"dataset_solution_{i}.pkl"
+        with open(file_name, "wb") as filehandler:
+            pkl.dump(result, filehandler)
+            print(f"[i] file saved at {file_name}")
+        del crowd
+        del my_area
+        del result
+
+    exits = [
+        (
+            np.array([exit_radius_width, radious_height]),
+            np.array([exit_width, exit_height]),
+        )
+        for exit_height in np.linspace(people_radius, zone_height // 2, 70)
+        for radious_height in np.linspace(exit_height, zone_height - exit_height, 70)
     ]
-    for i, exit_radius in enumerate(exit_radiuses):
-        exit_centers = [
-            np.array([exit_width, height])
-            for height in np.linspace(exit_radius[1], zone_height - exit_radius[1], 100)
-        ]
-        for j, exit_center in enumerate(exit_centers):
-            result = {
-                "zone_width": zone_width,
-                "zone_height": zone_height,
-                "people_radius": people_radius,
-                "people_speed": people_speed,
-                "people_number": people_number,
-                "people_speed": people_speed,
-                "time_step_number": time_step_number,
-                "max_time_step": max_time_step,
-                "exit_radius_width": exit_radius[0],
-                "exit_radius_height": exit_radius[1],
-                "exit_position_width": exit_center[0],
-                "exit_position_height": exit_center[1],
-            }
-            my_area = MovingArea(
-                width=zone_width,
-                height=zone_height,
-                moving_speed=people_speed,
-                people_number=people_number,
-                people_radius=people_radius,
-                exit_center=exit_center,
-                exit_radius=exit_radius,
-            )
-            result["obstacles"] = my_area.initialize_obstacles()
-            result["initial_position"] = my_area.initialize_positions(5, False)
-            crowd = CrowdSolver(
-                area_config=my_area,
-                max_time=max_time_step,
-                time_step_number=time_step_number,
-                initial_positions=result["initial_position"],
-            )
-            crowd.solve()
-            result["trajectories"] = crowd.result
 
-            file_name = save_path + f"dataset_solution_{i}-{j}.pkl"
-            with open(file_name, "wb") as filehandler:
-                pkl.dump(result, filehandler)
-            del crowd
-            del my_area
-            del result
-
-        del exit_centers
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.map(process, enumerate(exits))
 
 
 def read_amd_plot_solution(file_path: str):
@@ -169,4 +175,4 @@ def read_amd_plot_solution(file_path: str):
 
 
 if __name__ == "__main__":
-    dataset_generator(save_path="./dataset/")
+    dataset_generator(save_path="./newdataset/")
