@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle as pkl
-import concurrent.futures
+import multiprocessing as mp
 
 from tqdm import tqdm
 from utils import MovingArea
 from optimizer import speedProjection
-from viztools import plot_animation
+from viztools import plot_animation, plot_trajectories
 
 
 class CrowdSolver:
@@ -29,7 +29,7 @@ class CrowdSolver:
     def solve(self) -> None:
         """Main solver function which compute trajectories"""
         optimizer = speedProjection(moving_zone=self._area_config)
-        for _ in range(self._time_step_number):
+        for _ in tqdm(range(self._time_step_number)):
             positions = np.array(self._positions[-1])
             optimizer.update_position(positions)
             natural_speed = self._area_config.spontaneous_speeds(positions)
@@ -46,21 +46,54 @@ class CrowdSolver:
         return np.array(self._positions)
 
 
-def solve_and_plot():
+def solve_and_plot(
+    zone_width: int = 800,
+    zone_height: int = 400,
+    exit_center_width: int = None,
+    exit_center_height: int = None,
+    exit_radius_width: int = 10,
+    exit_radius_height: int = 40,
+    people_radius: int = 15,
+    people_number: int = 20,
+    people_speed: int = 6,
+    time_step_number: int = 40,
+    max_time_step: int = 120,
+    random_initial_position: bool = True,
+    save_solution: bool = False,
+    file_name: str = "data.pkl",
+) -> None:
     """Solve the problem and plot the solution"""
-    zone_width = 800
-    zone_height = 400
+
+    # initial setup of params
+    if not exit_center_width:
+        exit_center_width = zone_width // 2
+
+    if not exit_center_height:
+        exit_center_height = zone_height // 2
+
+    if not random_initial_position:
+        people_number = 50  # should fit to the initial positoin pkl file
+
     exit_center = np.array(
-        [
-            zone_width // 2,
-        ]
+        [exit_center_width, exit_center_height]
     )  # center of the exit
-    exit_radius = np.array([10, 40])  # radius of the exit
-    people_radius = 10
-    people_number = 50
-    people_speed = 6
-    time_step_number = 40
-    max_time_step = 140
+    exit_radius = np.array(
+        [exit_radius_width, exit_radius_height]
+    )  # radius of the exit
+
+    result = {
+        "zone_width": zone_width,
+        "zone_height": zone_height,
+        "people_radius": people_radius,
+        "people_speed": people_speed,
+        "people_number": people_number,
+        "time_step_number": time_step_number,
+        "max_time_step": max_time_step,
+        "exit_radius_width": exit_radius[0],
+        "exit_radius_height": exit_radius[1],
+        "exit_position_width": exit_center[0],
+        "exit_position_height": exit_center[1],
+    }
 
     my_area = MovingArea(
         width=zone_width,
@@ -71,87 +104,29 @@ def solve_and_plot():
         exit_center=exit_center,
         exit_radius=exit_radius,
     )
-    my_area.initialize_obstacles()
-    initial_positions = my_area.initialize_positions(5, False)
+
+    result["obstacles"] = my_area.initialize_obstacles()
+    result["initial_position"] = my_area.initialize_positions(
+        marge_safety=5, random=random_initial_position
+    )
+
     crowd = CrowdSolver(
         area_config=my_area,
         max_time=max_time_step,
         time_step_number=time_step_number,
-        initial_positions=initial_positions,
+        initial_positions=result["initial_position"],
     )
     crowd.solve()
     trajectories = crowd.result
-    plot_animation(trajectories, my_area)
 
-
-def dataset_generator(save_path: str = "./") -> None:
-    """Function that generate a dataset"""
-    zone_width = 800
-    zone_height = 400
-    people_radius = 10
-    people_number = 50
-    people_speed = 6
-    exit_radius_width = 10
-    exit_width = zone_width // 2
-    time_step_number = 40
-    max_time_step = 120
-
-    def process(data):
-        i, exit = data
-        exit_radius, exit_center = exit
-        print(i)
-        result = {
-            "zone_width": zone_width,
-            "zone_height": zone_height,
-            "people_radius": people_radius,
-            "people_speed": people_speed,
-            "people_number": people_number,
-            "time_step_number": time_step_number,
-            "max_time_step": max_time_step,
-            "exit_radius_width": exit[0],
-            "exit_radius_height": exit_radius[1],
-            "exit_position_width": exit_center[0],
-            "exit_position_height": exit_center[1],
-        }
-        my_area = MovingArea(
-            width=zone_width,
-            height=zone_height,
-            moving_speed=people_speed,
-            people_number=people_number,
-            people_radius=people_radius,
-            exit_center=exit_center,
-            exit_radius=exit_radius,
-        )
-        result["obstacles"] = my_area.initialize_obstacles()
-        result["initial_position"] = my_area.initialize_positions(5, False)
-        crowd = CrowdSolver(
-            area_config=my_area,
-            max_time=max_time_step,
-            time_step_number=time_step_number,
-            initial_positions=result["initial_position"],
-        )
-        crowd.solve()
-        result["trajectories"] = crowd.result
-
-        file_name = save_path + f"dataset_solution_{i}.pkl"
+    if save_solution:
         with open(file_name, "wb") as filehandler:
             pkl.dump(result, filehandler)
             print(f"[i] file saved at {file_name}")
-        del crowd
-        del my_area
-        del result
 
-    exits = [
-        (
-            np.array([exit_radius_width, radious_height]),
-            np.array([exit_width, exit_height]),
-        )
-        for exit_height in np.linspace(people_radius, zone_height // 2, 70)
-        for radious_height in np.linspace(exit_height, zone_height - exit_height, 70)
-    ]
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        executor.map(process, enumerate(exits))
+    amim = plot_animation(trajectories, my_area)
+    amim.save("result.gif", writer="imagemagick", fps=60)
+    plot_trajectories(trajectories, my_area)
 
 
 def read_amd_plot_solution(file_path: str):
@@ -175,4 +150,4 @@ def read_amd_plot_solution(file_path: str):
 
 
 if __name__ == "__main__":
-    dataset_generator(save_path="./newdataset/")
+    solve_and_plot(people_number=40, people_radius=10)

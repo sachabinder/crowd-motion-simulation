@@ -5,7 +5,7 @@ from matplotlib import animation
 from utils import MovingArea
 
 
-def plot_animation(trajectories: np.ndarray, area: MovingArea) -> None:
+def plot_animation(trajectories: np.ndarray, area: MovingArea) -> animation:
     fig = plt.figure(figsize=(10, 5))
     fig.set_dpi(100)
     fig.set_size_inches(7, 6.5)
@@ -33,4 +33,26 @@ def plot_animation(trajectories: np.ndarray, area: MovingArea) -> None:
         fig, animate, init_func=init, frames=len(trajectories), interval=200, blit=True
     )
     plt.show()
+    return anim
 
+
+def plot_trajectories(trajectories: np.ndarray, area: MovingArea) -> None:
+    fig = plt.figure(figsize=(10, 5))
+    fig.set_dpi(100)
+    fig.set_size_inches(7, 6.5)
+
+    ax = plt.axes(xlim=(0, area.width), ylim=(0, area.height))
+    plt.axis("equal")
+    plt.axis("off")
+    patches = [
+        plt.Circle(trajectories[0, i], area.people_radius, fc="r")
+        for i in range(trajectories.shape[1])
+    ]
+    area.plot(ax)
+    for patch in patches:
+        ax.add_patch(patch)
+
+    for j in range(len(patches)):
+        ax.plot(trajectories[:, j, 0], trajectories[:, j, 1], "--", color="red")
+
+    plt.show()
