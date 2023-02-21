@@ -63,11 +63,16 @@ def solve_and_plot(
     file_name: str = "data.pkl",
 ) -> None:
     """Solve the problem and plot the solution"""
+
+    # initial setup of params
     if not exit_center_width:
         exit_center_width = zone_width // 2
 
     if not exit_center_height:
         exit_center_height = zone_height // 2
+
+    if not random_initial_position:
+        people_number = 50  # should fit to the initial positoin pkl file
 
     exit_center = np.array(
         [exit_center_width, exit_center_height]
@@ -120,6 +125,7 @@ def solve_and_plot(
             print(f"[i] file saved at {file_name}")
 
     plot_animation(trajectories, my_area)
+    plot_trajectories(trajectories, my_area)
 
 
 def read_amd_plot_solution(file_path: str):
