@@ -5,7 +5,7 @@ from matplotlib import animation
 from utils import MovingArea
 
 
-def plot_animation(trajectories: np.ndarray, area: MovingArea) -> None:
+def plot_animation(trajectories: np.ndarray, area: MovingArea) -> animation:
     fig = plt.figure(figsize=(10, 5))
     fig.set_dpi(100)
     fig.set_size_inches(7, 6.5)
@@ -33,6 +33,7 @@ def plot_animation(trajectories: np.ndarray, area: MovingArea) -> None:
         fig, animate, init_func=init, frames=len(trajectories), interval=200, blit=True
     )
     plt.show()
+    return anim
 
 
 def plot_trajectories(trajectories: np.ndarray, area: MovingArea) -> None:

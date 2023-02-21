@@ -124,7 +124,8 @@ def solve_and_plot(
             pkl.dump(result, filehandler)
             print(f"[i] file saved at {file_name}")
 
-    plot_animation(trajectories, my_area)
+    amim = plot_animation(trajectories, my_area)
+    amim.save("result.gif", writer="imagemagick", fps=60)
     plot_trajectories(trajectories, my_area)
 
 
@@ -149,4 +150,4 @@ def read_amd_plot_solution(file_path: str):
 
 
 if __name__ == "__main__":
-    solve_and_plot()
+    solve_and_plot(people_number=40, people_radius=10)
