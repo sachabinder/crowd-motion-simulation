@@ -8,8 +8,8 @@ The model is detailed on the paper available [here](https://hal.science/hal-0035
 
 **Example of a simulation with 20 people and radius 15 :**
 <p align="center">
-    <img src="results/result20.gif" alt="2D_cstspeed_Neumann" width="50%"></a>
-    <img src="results/result20.png" alt="2D_cstspeed_Neumann_flat" width="50%"></a>
+    <img src="results/result20.gif" alt="2D_cstspeed_Neumann" width="30%"></a>
+    <img src="results/result20.png" alt="2D_cstspeed_Neumann_flat" width="30%"></a>
 </p>
 
 ## Setup of the code
