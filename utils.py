@@ -200,36 +200,3 @@ class MovingArea:
         for position in self.initial_positions:
             circle = Circle(position, self.people_radius, color="r")
             ax.add_patch(circle)
-
-
-if __name__ == "__main__":
-    """&
-    TEST DEV ZONE
-    """
-
-    WIDTH = 40
-    HEIGHT = 20
-    EXIT_CENTER = np.array([2 * WIDTH // 3, HEIGHT // 2])  # center of the exit
-    EXIT_RADIUS = np.array([1, 2])  # radius of the exit
-    my_area = MovingArea(
-        width=WIDTH,
-        height=HEIGHT,
-        moving_speed=1,
-        people_radius=1,
-        people_number=15,
-        exit_center=EXIT_CENTER,
-        exit_radius=EXIT_RADIUS,
-    )
-    my_area.initialize_obstacles()
-    my_area.initialize_positions(marge_safety=0, random=True)
-
-    fig = plt.figure(figsize=(10, 5))
-    ax = fig.add_subplot()
-
-    my_area.plot_speed(ax)
-    my_area.plot(ax)
-    my_area.plot_initial_positions(ax)
-    plt.axis("equal")
-    plt.axis("off")
-
-    plt.show()
